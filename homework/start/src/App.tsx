@@ -7,6 +7,7 @@ import {
     seedTasks,
     Task,
     visibleTasks,
+    isBlankTitle, // Добавили импорт проверки
 } from "./tasks"
 
 const FILTERS: Array<{ id: Filter; label: string }> = [
@@ -19,19 +20,37 @@ export function App() {
     const [tasks, setTasks] = useState<Task[]>(seedTasks)
     const [filter, setFilter] = useState<Filter>("all")
     const [draft, setDraft] = useState("")
+    const [error, setError] = useState<string | null>(null) // Состояние для ошибки
 
     function add() {
+        // Проверяем на пустоту перед созданием
+        if (isBlankTitle(draft)) {
+            setError("Название не может быть пустым")
+            return // Выходим, чтобы не очищать инпут
+        }
+        
         const next = createTask(tasks.length + 1, draft)
-        if (next !== undefined) setTasks([...tasks, next])
-        setDraft("")
+        if (next !== undefined) {
+            setTasks([...tasks, next])
+            setError(null) // Сбрасываем ошибку при успехе
+            setDraft("")
+        } else {
+            setError("Название не может быть пустым")
+        }
     }
 
     function rename(task: Task) {
         const title = window.prompt("Название", task.title)
         if (title == null) return
-        // Старая форма сохраняла название без проверки; этот путь оставлен
-        // ради редактирования в один шаг, и issue #7 именно про него.
+        
+        // Проверяем на пустоту перед переименованием
+        if (isBlankTitle(title)) {
+            setError("Название не может быть пустым")
+            return
+        }
+        
         setTasks(renameTask(tasks, task.id, title))
+        setError(null) // Сбрасываем ошибку при успехе
     }
 
     const shown = visibleTasks(tasks, filter)
@@ -42,6 +61,13 @@ export function App() {
             <p style={{ margin: "0 0 16px", color: "#555" }}>
                 Открытых: {openCount(tasks)}
             </p>
+
+            {/* Вывод ошибки на экран */}
+            {error && (
+                <div style={{ color: "red", marginBottom: 12, fontWeight: "bold" }}>
+                    {error}
+                </div>
+            )}
 
             <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
                 {FILTERS.map((f) => (
@@ -72,7 +98,10 @@ export function App() {
             <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                 <input
                     value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
+                    onChange={(e) => {
+                        setDraft(e.target.value)
+                        if (error) setError(null) // Убираем ошибку при вводе
+                    }}
                     placeholder="Новая задача"
                     style={{ flex: 1, padding: 8 }}
                 />
